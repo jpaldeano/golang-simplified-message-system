@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -21,7 +23,7 @@ type Hub struct {
 	messagesChannel chan *HubMessage   // messageChannel is used to read messages sent from clients
 	connect         chan *Client       // connect is used to notify when a client connects
 	disconnect      chan *Client       // disconnect is used to notify when a client disconnects
-	clients         map[int64]*Client  // clients keeps connected clients
+	clients         map[int]*Client    // clients keeps connected clients
 }
 
 func initHub(addr string) {
@@ -33,6 +35,7 @@ func initHub(addr string) {
 		messagesChannel: make(chan *HubMessage),
 		connect:         make(chan *Client),
 		disconnect:      make(chan *Client),
+		clients:         make(map[int]*Client),
 	}
 	go hub.handle()
 
@@ -59,6 +62,14 @@ func (hub *Hub) handle() {
 	for {
 		select {
 		case connection := <-hub.connect:
+			add := connection.ws.RemoteAddr().String()
+			port, err := getPortFromAddress(add)
+			if err != nil {
+				fmt.Printf("connection error: %v", err)
+				hub.disconnect <- connection
+				return
+			}
+			hub.clients[*port] = connection // port is used in the map to identify client
 			fmt.Printf("A new client connected with the hub from %s\n", connection.ws.RemoteAddr().String())
 		case disconnect := <-hub.disconnect:
 			close(disconnect.data)
@@ -67,9 +78,22 @@ func (hub *Hub) handle() {
 		case message := <-hub.messagesChannel:
 			fmt.Printf("from %s: %s\n", message.client.ws.RemoteAddr().String(), string(message.contents))
 			// reply to client
+			fmt.Println(hub.clients)
 			message.client.data <- []byte("server: I received your message")
 		}
 	}
+}
+
+func getPortFromAddress(a string) (*int, error) {
+	portStr := strings.Split(a, ":")
+	if len(portStr) != 2 {
+		return nil, fmt.Errorf("error getting remote address")
+	}
+	port, err := strconv.Atoi(portStr[1])
+	if err != nil {
+		return nil, fmt.Errorf("error converting port: %s", portStr[1])
+	}
+	return &port, nil
 }
 
 func (hub *Hub) read(client *Client) {
