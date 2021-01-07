@@ -76,24 +76,49 @@ func (hub *Hub) handle() {
 			fmt.Printf("Client %s closed connection with the hub\n", disconnect.ws.RemoteAddr().String())
 
 		case message := <-hub.messagesChannel:
-			add := message.client.ws.RemoteAddr().String()
-			message.client.data <- []byte(fmt.Sprintf("server: I received your message %s", add))
-
-			port, err := getPortFromAddress(add)
-			if err != nil {
-				fmt.Printf("connection error: %v", err)
-				hub.disconnect <- message.client
-				return
-			}
-
-			msgStr := string(message.contents)
-			fmt.Printf("from %s: %s\n", add, msgStr)
-
-			if msgStr == "id" {
-				message.client.data <- []byte(fmt.Sprint(*port))
-			}
+			hub.handleMessage(message)
 		}
 	}
+}
+
+func (hub *Hub) getAllUsersExcept(user int) []byte {
+	values := make([]byte, 0, len(hub.clients))
+	for k := range hub.clients {
+		// exclude itself from list
+		if k != user {
+			bValue := append([]byte(fmt.Sprint(k)), []byte("\n")...)
+			values = append(values, bValue...)
+		}
+	}
+	return values
+}
+
+func (hub *Hub) handleMessage(hubM *HubMessage) {
+	add := hubM.client.ws.RemoteAddr().String()
+	hubM.client.data <- []byte(fmt.Sprintf("I received your message %s", add))
+
+	port, err := getPortFromAddress(add)
+	if err != nil {
+		fmt.Printf("connection error: %v", err)
+		hub.disconnect <- hubM.client
+		return
+	}
+
+	msgStr := string(hubM.contents)
+	fmt.Printf("from %s: %s\n", add, msgStr)
+
+	if msgStr == "id" {
+		hubM.client.data <- []byte(fmt.Sprint(*port))
+		return
+	}
+
+	if msgStr == "list" {
+		usersList := hub.getAllUsersExcept(*port)
+		hubM.client.data <- usersList
+		return
+	}
+
+	hubM.client.data <- []byte("command not recognized")
 }
 
 func getPortFromAddress(a string) (*int, error) {
@@ -130,7 +155,7 @@ func (hub *Hub) write(client *Client) {
 			if !ok {
 				return
 			}
-			client.ws.WriteMessage(1, message)
+			client.ws.WriteMessage(1, append([]byte("server: "), message...))
 		}
 	}
 }

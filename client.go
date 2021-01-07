@@ -44,7 +44,7 @@ func (c *Client) read() {
 		_, msg, err := c.ws.ReadMessage()
 		if err != nil {
 			c.ws.Close()
-			break
+			return
 		}
 		if len(msg) > 0 {
 			fmt.Println(string(msg))
