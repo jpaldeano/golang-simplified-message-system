@@ -83,7 +83,7 @@ func (hub *Hub) handle() {
 
 func (hub *Hub) handleMessage(hubM *HubMessage) {
 	add := hubM.client.ws.RemoteAddr().String()
-	hubM.client.data <- []byte(fmt.Sprintf("I received your message %s", add))
+	// hubM.client.data <- []byte(fmt.Sprintf("I received your message %s", add))
 
 	port, err := getPortFromAddress(add)
 	if err != nil {
@@ -106,14 +106,50 @@ func (hub *Hub) handleMessage(hubM *HubMessage) {
 		return
 	}
 
+	if strings.HasPrefix(msgStr, "relay") {
+		// The client can send a list message which the hub will answer with the list of all connected client user_id:s (excluding the requesting client).
+		hub.parseRelayString(hubM)
+		return
+	}
+
 	hubM.client.data <- []byte("command not recognized")
+}
+func (hub *Hub) parseRelayString(message *HubMessage) {
+	// relay|users=u1;u2,body=con
+	relay := strings.TrimPrefix(string(message.contents), "relay|")
+
+	relayArgs := strings.Split(relay, ",")
+	if len(relayArgs) != 2 {
+		message.client.data <- []byte("relay message should contain a body")
+		return
+	}
+	users := strings.TrimPrefix(relayArgs[0], "users=")
+	body := strings.TrimPrefix(relayArgs[1], "body=")
+
+	destList := strings.Split(users, ";")
+	if len(destList) == 0 {
+		message.client.data <- []byte("unexpected message format")
+		return
+	}
+	senderID, _ := getPortFromAddress(message.client.ws.RemoteAddr().String())
+	for _, u := range destList {
+		userID, _ := strconv.Atoi(u)
+		destClient, found := hub.clients[userID]
+		if !found {
+			// if user in the provided list can't be found, return to the client the error
+			message.client.data <- []byte(fmt.Sprintf("userid not found: %s", u))
+		} else {
+			// if user in the provided list is active, send the message and attach the user that sent it
+			userName := []byte(fmt.Sprintf("%d: ", *senderID))
+			destClient.data <- append(userName, body...)
+		}
+	}
 }
 
 func clientsToBytes(clients []*Client) []byte {
 	value := make([]byte, 0, len(clients))
 	for _, c := range clients {
 		id, _ := getPortFromAddress(c.ws.RemoteAddr().String())
-		fmt.Println(*id)
 		bValue := append([]byte(fmt.Sprint(*id)), []byte("\n")...)
 		value = append(value, bValue...)
 	}
