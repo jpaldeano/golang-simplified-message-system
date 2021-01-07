@@ -81,18 +81,6 @@ func (hub *Hub) handle() {
 	}
 }
 
-func (hub *Hub) getAllUsersExcept(user int) []byte {
-	values := make([]byte, 0, len(hub.clients))
-	for k := range hub.clients {
-		// exclude itself from list
-		if k != user {
-			bValue := append([]byte(fmt.Sprint(k)), []byte("\n")...)
-			values = append(values, bValue...)
-		}
-	}
-	return values
-}
-
 func (hub *Hub) handleMessage(hubM *HubMessage) {
 	add := hubM.client.ws.RemoteAddr().String()
 	hubM.client.data <- []byte(fmt.Sprintf("I received your message %s", add))
@@ -114,11 +102,33 @@ func (hub *Hub) handleMessage(hubM *HubMessage) {
 
 	if msgStr == "list" {
 		usersList := hub.getAllUsersExcept(*port)
-		hubM.client.data <- usersList
+		hubM.client.data <- clientsToBytes(usersList)
 		return
 	}
 
 	hubM.client.data <- []byte("command not recognized")
+}
+
+func clientsToBytes(clients []*Client) []byte {
+	value := make([]byte, 0, len(clients))
+	for _, c := range clients {
+		id, _ := getPortFromAddress(c.ws.RemoteAddr().String())
+		fmt.Println(*id)
+		bValue := append([]byte(fmt.Sprint(*id)), []byte("\n")...)
+		value = append(value, bValue...)
+	}
+	return value
+}
+
+func (hub *Hub) getAllUsersExcept(user int) []*Client {
+	clients := make([]*Client, 0, len(hub.clients))
+	for k, v := range hub.clients {
+		// exclude itself from list
+		if k != user {
+			clients = append(clients, v)
+		}
+	}
+	return clients
 }
 
 func getPortFromAddress(a string) (*int, error) {
