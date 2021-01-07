@@ -17,9 +17,11 @@ type HubMessage struct {
 
 // Hub represents the server node. Which is able to receive and send messages to clients via websocket
 type Hub struct {
-	messagesChannel chan *HubMessage
-	upgrader        websocket.Upgrader
-	connect         chan *Client
+	upgrader        websocket.Upgrader // websocket to upgrade
+	messagesChannel chan *HubMessage   // messageChannel is used to read messages sent from clients
+	connect         chan *Client       // connect is used to notify when a client connects
+	disconnect      chan *Client       // disconnect is used to notify when a client disconnects
+	clients         map[int64]*Client  // clients keeps connected clients
 }
 
 func initHub(addr string) {
@@ -28,8 +30,9 @@ func initHub(addr string) {
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
-		connect:         make(chan *Client),
 		messagesChannel: make(chan *HubMessage),
+		connect:         make(chan *Client),
+		disconnect:      make(chan *Client),
 	}
 	go hub.handle()
 
@@ -57,6 +60,10 @@ func (hub *Hub) handle() {
 		select {
 		case connection := <-hub.connect:
 			fmt.Printf("A new client connected with the hub from %s\n", connection.ws.RemoteAddr().String())
+		case disconnect := <-hub.disconnect:
+			close(disconnect.data)
+			fmt.Printf("Client %s closed connection with the hub\n", disconnect.ws.RemoteAddr().String())
+
 		case message := <-hub.messagesChannel:
 			fmt.Printf("from %s: %s\n", message.client.ws.RemoteAddr().String(), string(message.contents))
 			// reply to client
@@ -69,6 +76,7 @@ func (hub *Hub) read(client *Client) {
 	for {
 		_, msg, err := client.ws.ReadMessage()
 		if err != nil {
+			hub.disconnect <- client
 			client.ws.Close()
 			break
 		}

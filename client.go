@@ -23,7 +23,6 @@ func initClient(address string) {
 
 	u := url.URL{Scheme: "ws", Host: *addr, Path: "/ws"}
 	log.Printf("connecting to %s", u.String())
-
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		log.Fatal("dial:", err)
@@ -31,7 +30,6 @@ func initClient(address string) {
 	defer c.Close()
 
 	client := &Client{ws: c}
-
 	go client.read()
 
 	for {
