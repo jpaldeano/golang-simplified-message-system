@@ -47,7 +47,7 @@ func (c *Client) read() {
 			break
 		}
 		if len(msg) > 0 {
-			fmt.Println("client read:", string(msg))
+			fmt.Println(string(msg))
 		}
 	}
 }

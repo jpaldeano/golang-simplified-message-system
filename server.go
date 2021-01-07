@@ -76,10 +76,22 @@ func (hub *Hub) handle() {
 			fmt.Printf("Client %s closed connection with the hub\n", disconnect.ws.RemoteAddr().String())
 
 		case message := <-hub.messagesChannel:
-			fmt.Printf("from %s: %s\n", message.client.ws.RemoteAddr().String(), string(message.contents))
-			// reply to client
-			fmt.Println(hub.clients)
-			message.client.data <- []byte("server: I received your message")
+			add := message.client.ws.RemoteAddr().String()
+			message.client.data <- []byte(fmt.Sprintf("server: I received your message %s", add))
+
+			port, err := getPortFromAddress(add)
+			if err != nil {
+				fmt.Printf("connection error: %v", err)
+				hub.disconnect <- message.client
+				return
+			}
+
+			msgStr := string(message.contents)
+			fmt.Printf("from %s: %s\n", add, msgStr)
+
+			if msgStr == "id" {
+				message.client.data <- []byte(fmt.Sprint(*port))
+			}
 		}
 	}
 }
@@ -87,7 +99,7 @@ func (hub *Hub) handle() {
 func getPortFromAddress(a string) (*int, error) {
 	portStr := strings.Split(a, ":")
 	if len(portStr) != 2 {
-		return nil, fmt.Errorf("error getting remote address")
+		return nil, fmt.Errorf("error reading the address: %s", a)
 	}
 	port, err := strconv.Atoi(portStr[1])
 	if err != nil {
