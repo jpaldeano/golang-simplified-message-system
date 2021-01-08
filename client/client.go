@@ -14,10 +14,11 @@ import (
 
 // Client provides a client object to connect to server via websocket
 type Client struct {
-	ws   *websocket.Conn
-	data chan []byte
+	WS   *websocket.Conn
+	Data chan []byte
 }
 
+// InitClient provides a client that connects via websockets with the server hosted on the given address and path /ws
 func InitClient(address string) {
 	var addr = flag.String("addr", address, "http service address")
 
@@ -29,7 +30,7 @@ func InitClient(address string) {
 	}
 	defer c.Close()
 
-	client := &Client{ws: c}
+	client := &Client{WS: c}
 	go client.read()
 
 	for {
@@ -41,9 +42,9 @@ func InitClient(address string) {
 
 func (c *Client) read() {
 	for {
-		_, msg, err := c.ws.ReadMessage()
+		_, msg, err := c.WS.ReadMessage()
 		if err != nil {
-			c.ws.Close()
+			c.WS.Close()
 			return
 		}
 		if len(msg) > 0 {
