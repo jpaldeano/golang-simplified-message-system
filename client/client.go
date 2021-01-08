@@ -18,7 +18,7 @@ type Client struct {
 	data chan []byte
 }
 
-func initClient(address string) {
+func InitClient(address string) {
 	var addr = flag.String("addr", address, "http service address")
 
 	u := url.URL{Scheme: "ws", Host: *addr, Path: "/ws"}

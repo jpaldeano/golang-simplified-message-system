@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	client "github.com/jpaldi/golang-simplified-message-system/client"
 	hub "github.com/jpaldi/golang-simplified-message-system/server"
 )
 
@@ -15,7 +16,7 @@ func main() {
 		case "hub":
 			hub.InitHub(os.Args[2])
 		case "client":
-			initClient(os.Args[2])
+			client.InitClient(os.Args[2])
 		default:
 			fmt.Println("first argument should be 'hub' or 'client'")
 		}
