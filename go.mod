@@ -1,4 +1,4 @@
-module assignment
+module github.com/jpaldi/golang-simplified-message-system
 
 go 1.14
 
