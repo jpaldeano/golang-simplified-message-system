@@ -11,6 +11,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	maxBodySize            = 1024000
+	maxReceiversPerMessage = 255
+)
+
 // HubMessage provides an helper to parse message and client details to the channel
 type HubMessage struct {
 	contents []byte
@@ -131,6 +136,17 @@ func (hub *Hub) parseRelayString(message *HubMessage) {
 		message.client.data <- []byte("unexpected message format")
 		return
 	}
+
+	if len(destList) > maxReceiversPerMessage {
+		message.client.data <- []byte("max receivers per message exceeded")
+		return
+	}
+
+	if len(body) > maxBodySize {
+		message.client.data <- []byte("message body can't exceed 1024kb")
+		return
+	}
+
 	senderID, _ := getPortFromAddress(message.client.ws.RemoteAddr().String())
 	for _, u := range destList {
 		userID, _ := strconv.Atoi(u)
