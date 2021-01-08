@@ -1,7 +1,6 @@
 package test
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net/url"
@@ -22,7 +21,24 @@ func TestGetID(t *testing.T) {
 
 	go clientX.assertGetIDResponseFromServer(t)
 	go clientX.WS.WriteMessage(1, []byte("id"))
-	time.Sleep(time.Second * 2) // breathing room to receive the server response
+	time.Sleep(time.Second * 2) // give some breathing room to receive the server response
+	clientX = nil
+}
+
+func TestGetList(t *testing.T) {
+	var clientX *TestClient
+
+	address := "localhost:8081"
+	go msgSystemHub.InitHub(address)
+	clientX = newTestClient(address)
+	_ = newTestClient(address) // create another client, otherwise only the client X will be connected and list will be empty
+
+	go clientX.assertGetListResponseFromServer(t)
+	go clientX.WS.WriteMessage(1, []byte("list"))
+	time.Sleep(time.Second * 2) // give some breathing room to receive the server response
+}
+
+func TestRelay(t *testing.T) {
 }
 
 type TestClient struct {
@@ -31,9 +47,7 @@ type TestClient struct {
 }
 
 func newTestClient(address string) *TestClient {
-	var addr = flag.String("addr", address, "http service address")
-
-	u := url.URL{Scheme: "ws", Host: *addr, Path: "/ws"}
+	u := url.URL{Scheme: "ws", Host: address, Path: "/ws"}
 	log.Printf("connecting to %s", u.String())
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
@@ -47,6 +61,24 @@ func newTestClient(address string) *TestClient {
 
 }
 
+func (c *TestClient) assertGetListResponseFromServer(t *testing.T) {
+	for {
+		select {
+		case msg := <-c.Data:
+			if !strings.HasPrefix(string(msg), "server: ") {
+				t.Fatalf("unexpected response from server: expected to be prefixed by 'server: ', got %s", string(msg))
+			}
+
+			portString := strings.TrimPrefix(string(msg), "server: users list: \n0) ")
+			portString = strings.TrimSuffix(portString, "\n")
+			_, err := strconv.Atoi(portString)
+			if err != nil {
+				t.Fatalf("unexpected response from server: user id expected to be a number, got %s, err: %v", string(msg), err)
+			}
+		}
+	}
+}
+
 func (c *TestClient) assertGetIDResponseFromServer(t *testing.T) {
 	for {
 		select {
@@ -55,11 +87,6 @@ func (c *TestClient) assertGetIDResponseFromServer(t *testing.T) {
 				t.Fatalf("unexpected response from server: expected to be prefixed by 'server: ', got %s", string(msg))
 			}
 
-			portString := strings.TrimPrefix(string(msg), "server: ")
-			_, err := strconv.Atoi(portString)
-			if err != nil {
-				t.Fatalf("unexpected response from server: user id expected to be a number, got %s, err: %v", string(msg), err)
-			}
 		}
 	}
 }
