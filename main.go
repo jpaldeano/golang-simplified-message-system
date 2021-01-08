@@ -11,7 +11,7 @@ func main() {
 	} else {
 		switch os.Args[1] {
 		case "hub":
-			initHub(os.Args[2])
+			InitHub(os.Args[2])
 		case "client":
 			initClient(os.Args[2])
 		default:

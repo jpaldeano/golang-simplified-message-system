@@ -18,5 +18,4 @@ The message delivery system includes the following possible message types from r
 
 - **id** - (clientX->hub->clientX) the client can send an identity message which the hub will answer with the user id of the requesting client.
 - **list** - (clientX->hub->clientX) the client can send a list message which the hub will answer with the list of all connected client user ids. 
-
 - **relay|users=clientY;clientZ,body=hello chaps!** - (clientX-> [server->clientY & server->clientZ]) The client can send a relay message which body is relayed to receivers marked in the message. 

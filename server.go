@@ -31,7 +31,7 @@ type Hub struct {
 	clients         map[int]*Client    // clients keeps connected clients
 }
 
-func initHub(addr string) {
+func InitHub(addr string) {
 	fmt.Println("Starting hub on", addr)
 	hub := Hub{
 		upgrader: websocket.Upgrader{
@@ -125,7 +125,17 @@ func (hub *Hub) parseRelayString(message *HubMessage) {
 
 	relayArgs := strings.Split(relay, ",")
 	if len(relayArgs) != 2 {
-		message.client.data <- []byte("relay message should contain a body")
+		message.client.data <- []byte("relay message should contain users and body fields")
+		return
+	}
+
+	if !strings.HasPrefix(relayArgs[0], "users=") {
+		message.client.data <- []byte("relay message should contain users field")
+		return
+	}
+
+	if !strings.HasPrefix(relayArgs[1], "body=") {
+		message.client.data <- []byte("relay message should contain a body field")
 		return
 	}
 	users := strings.TrimPrefix(relayArgs[0], "users=")
@@ -156,17 +166,18 @@ func (hub *Hub) parseRelayString(message *HubMessage) {
 			message.client.data <- []byte(fmt.Sprintf("userid not found: %s", u))
 		} else {
 			// if user in the provided list is active, send the message and attach the user that sent it
-			userName := []byte(fmt.Sprintf("%d: ", *senderID))
+			userName := []byte(fmt.Sprintf("%d-> ", *senderID))
 			destClient.data <- append(userName, body...)
 		}
 	}
 }
 
 func clientsToBytes(clients []*Client) []byte {
-	value := make([]byte, 0, len(clients))
-	for _, c := range clients {
+	value := []byte("users list: \n")
+	for i, c := range clients {
 		id, _ := getPortFromAddress(c.ws.RemoteAddr().String())
-		bValue := append([]byte(fmt.Sprint(*id)), []byte("\n")...)
+		bValue := append([]byte(fmt.Sprint(i)+") "), []byte(fmt.Sprint(*id))...)
+		bValue = append(bValue, []byte("\n")...)
 		value = append(value, bValue...)
 	}
 	return value
