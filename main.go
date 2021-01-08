@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	hub "github.com/jpaldi/golang-simplified-message-system/server"
 )
 
 func main() {
@@ -11,7 +13,7 @@ func main() {
 	} else {
 		switch os.Args[1] {
 		case "hub":
-			InitHub(os.Args[2])
+			hub.InitHub(os.Args[2])
 		case "client":
 			initClient(os.Args[2])
 		default:
